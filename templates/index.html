@@ -1670,6 +1670,15 @@
             wizardStep = 1;
             signedFiles = [];
 
+            // Reset step 3 UI state
+            document.getElementById('signing-progress').style.display = 'block';
+            document.getElementById('signing-complete').style.display = 'none';
+            document.getElementById('progress-fill').style.width = '0%';
+            document.getElementById('progress-text').textContent = 'Signing documents...';
+            const downloadBtn = document.getElementById('download-btn');
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = 'Download Signed Files';
+
             // Populate slot select and preselect slot 2 (signing slot) or first available
             const select = document.getElementById('slot-select');
             select.innerHTML = '';
