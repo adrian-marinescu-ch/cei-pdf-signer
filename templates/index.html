@@ -20,6 +20,56 @@
             color: #fff;
         }
 
+        /* Loading screen - shows immediately */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.3s ease-out;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-logo {
+            font-size: 2em;
+            font-weight: bold;
+            background: linear-gradient(90deg, #00d4ff, #0099ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 212, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .header {
             background: linear-gradient(90deg, #16213e, #1a1a2e);
             padding: 15px 20px;
@@ -772,6 +822,13 @@
     </style>
 </head>
 <body>
+    <!-- Loading screen - shows immediately while app initializes -->
+    <div class="loading-screen" id="loading-screen">
+        <div class="loading-logo">CEI PDF Signer</div>
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Se incarca...</div>
+    </div>
+
     <div class="header">
         <h1>CEI PDF Signer</h1>
         <div class="header-status">
@@ -1832,6 +1889,11 @@
 
         // Initialize - all operations run independently
         window.onload = function() {
+            // Hide loading screen after a brief moment to ensure smooth transition
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('hidden');
+            }, 500);
+
             // Check server status (non-blocking)
             fetch('/api/status')
                 .then(r => r.json())
