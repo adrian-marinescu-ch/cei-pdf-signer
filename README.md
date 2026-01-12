@@ -91,6 +91,14 @@ sudo defaults write /Library/Preferences/com.apple.security.smartcard useIFDCCID
 # Restart your Mac for changes to take effect
 ```
 
+#### Debugging CryptoTokenKit
+
+To view macOS CryptoTokenKit debug logs (useful for diagnosing smart card issues):
+
+```bash
+./scripts/ctk-logs.sh
+```
+
 ### Security
 
 - PIN is never stored
@@ -179,6 +187,14 @@ sudo defaults write /Library/Preferences/com.apple.security.smartcard allowSmart
 sudo defaults write /Library/Preferences/com.apple.security.smartcard UserPairing -bool false
 sudo defaults write /Library/Preferences/com.apple.security.smartcard useIFDCCID -bool false
 # Restartati Mac-ul pentru ca setarile sa aiba efect
+```
+
+#### Debugging CryptoTokenKit
+
+Pentru a vedea log-urile de debug macOS CryptoTokenKit (util pentru diagnosticarea problemelor cu smart card):
+
+```bash
+./scripts/ctk-logs.sh
 ```
 
 ### Securitate
