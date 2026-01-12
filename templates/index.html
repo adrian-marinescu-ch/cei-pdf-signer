@@ -1606,6 +1606,7 @@
                 if (data.error && !data.slots) {
                     statusEl.className = 'status-badge disconnected';
                     statusEl.innerHTML = '<span>Error - Click to retry</span>';
+                    hideLoadingScreen();
                     isDetecting = false;
                     return false;
                 }
@@ -1614,12 +1615,9 @@
                     cardFound = false;
                     availableSlots = [];
                     statusEl.className = 'status-badge disconnected';
-                    if (data.error && data.error.includes('timeout')) {
-                        statusEl.innerHTML = '<span>Reader timeout - Click to retry</span>';
-                    } else {
-                        statusEl.innerHTML = '<span>No card - Click to retry</span>';
-                    }
+                    statusEl.innerHTML = '<span>No card - Click to retry</span>';
                     updateSignButton();
+                    hideLoadingScreen();
                     isDetecting = false;
                     return false;
                 }
@@ -1634,6 +1632,7 @@
                 // Update sign button now that card is found
                 updateSignButton();
 
+                hideLoadingScreen();
                 isDetecting = false;
                 return true;
 
@@ -1644,6 +1643,7 @@
                 } else {
                     statusEl.innerHTML = '<span>Connection error - Click to retry</span>';
                 }
+                hideLoadingScreen();
                 isDetecting = false;
                 return false;
             }
@@ -1887,13 +1887,16 @@
             }
         });
 
+        // Hide loading screen (called after first card detection)
+        function hideLoadingScreen() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
+                loadingScreen.classList.add('hidden');
+            }
+        }
+
         // Initialize - all operations run independently
         window.onload = function() {
-            // Hide loading screen after a brief moment to ensure smooth transition
-            setTimeout(() => {
-                document.getElementById('loading-screen').classList.add('hidden');
-            }, 500);
-
             // Check server status (non-blocking)
             fetch('/api/status')
                 .then(r => r.json())
@@ -1907,7 +1910,7 @@
             // Check PKCS#11 library status
             checkPkcs11Status();
 
-            // Start background card detection
+            // Start background card detection (will hide loading screen when done)
             startCardDetection();
 
             // Initialize sign button state

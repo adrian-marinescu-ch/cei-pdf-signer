@@ -11,7 +11,6 @@ import tempfile
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
@@ -90,45 +89,9 @@ def api_status():
     })
 
 
-# Timeout for card detection (seconds)
-CARD_DETECTION_TIMEOUT = 5
-
-
-def _detect_slots_internal(lib_path):
-    """Internal function to detect slots - runs in thread with timeout"""
-    lib = PyKCS11.PyKCS11Lib()
-    lib.load(lib_path)
-
-    # Get slots with tokens present (card inserted)
-    slots = lib.getSlotList(tokenPresent=True)
-
-    if not slots:
-        return {'slots': [], 'error': 'No smart card detected'}
-
-    slot_info = []
-    for slot_id in slots:
-        try:
-            token_info = lib.getTokenInfo(slot_id)
-            slot_info.append({
-                'id': slot_id,
-                'label': token_info.label.strip(),
-                'model': token_info.model.strip(),
-                'manufacturer': token_info.manufacturerID.strip(),
-            })
-        except:
-            slot_info.append({
-                'id': slot_id,
-                'label': f'Slot {slot_id}',
-                'model': 'Unknown',
-                'manufacturer': 'Unknown',
-            })
-
-    return {'slots': slot_info}
-
-
 @app.route('/api/slots')
 def api_slots():
-    """Detect available smart card slots with timeout protection"""
+    """Detect available smart card slots"""
     if not PKCS11_AVAILABLE:
         return jsonify({'slots': [], 'error': 'PyKCS11 not installed'})
 
@@ -139,17 +102,34 @@ def api_slots():
         return jsonify({'slots': [], 'error': f'PKCS11 library not found at: {lib_path}'})
 
     try:
-        # Run detection with timeout to prevent hanging
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_detect_slots_internal, lib_path)
+        lib = PyKCS11.PyKCS11Lib()
+        lib.load(lib_path)
+
+        # Get slots with tokens present (card inserted)
+        slots = lib.getSlotList(tokenPresent=True)
+
+        if not slots:
+            return jsonify({'slots': [], 'error': 'No smart card detected'})
+
+        slot_info = []
+        for slot_id in slots:
             try:
-                result = future.result(timeout=CARD_DETECTION_TIMEOUT)
-                return jsonify(result)
-            except FuturesTimeoutError:
-                return jsonify({
-                    'slots': [],
-                    'error': f'Reader timeout - the smart card reader is not responding. Try disconnecting and reconnecting the reader.'
+                token_info = lib.getTokenInfo(slot_id)
+                slot_info.append({
+                    'id': slot_id,
+                    'label': token_info.label.strip(),
+                    'model': token_info.model.strip(),
+                    'manufacturer': token_info.manufacturerID.strip(),
                 })
+            except:
+                slot_info.append({
+                    'id': slot_id,
+                    'label': f'Slot {slot_id}',
+                    'model': 'Unknown',
+                    'manufacturer': 'Unknown',
+                })
+
+        return jsonify({'slots': slot_info})
 
     except PyKCS11.PyKCS11Error as e:
         return jsonify({'slots': [], 'error': f'Smart card error: {str(e)}'})
