@@ -64,8 +64,10 @@ pkcs11_lib = None
 pkcs11_session = None
 
 
-def get_pkcs11_lib_path():
-    """Get PKCS#11 library path"""
+def get_pkcs11_lib_path(custom_path=None):
+    """Get PKCS#11 library path - uses custom path if provided, otherwise env var or default"""
+    if custom_path and custom_path.strip():
+        return custom_path.strip()
     return os.environ.get('PKCS11_LIB', DEFAULT_PKCS11_LIB)
 
 
@@ -93,9 +95,11 @@ def api_slots():
     if not PKCS11_AVAILABLE:
         return jsonify({'slots': [], 'error': 'PyKCS11 not installed'})
 
-    lib_path = get_pkcs11_lib_path()
+    # Get custom path from query string if provided
+    custom_path = request.args.get('pkcs11_path')
+    lib_path = get_pkcs11_lib_path(custom_path)
     if not os.path.exists(lib_path):
-        return jsonify({'slots': [], 'error': 'PKCS11 library not found'})
+        return jsonify({'slots': [], 'error': f'PKCS11 library not found at: {lib_path}'})
 
     try:
         lib = PyKCS11.PyKCS11Lib()
@@ -150,7 +154,8 @@ def api_get_certificate():
         return jsonify({'error': 'PIN required'}), 400
 
     try:
-        lib_path = get_pkcs11_lib_path()
+        custom_path = data.get('pkcs11_path')
+        lib_path = get_pkcs11_lib_path(custom_path)
         lib = PyKCS11.PyKCS11Lib()
         lib.load(lib_path)
 
@@ -286,7 +291,9 @@ def api_sign_pdf():
         pdf_data = pdf_file.read()
         pdf_input = BytesIO(pdf_data)
 
-        lib_path = get_pkcs11_lib_path()
+        # Get custom PKCS11 path from form data
+        custom_path = request.form.get('pkcs11_path')
+        lib_path = get_pkcs11_lib_path(custom_path)
 
         # Load PKCS#11 library and find the right slot
         lib = pkcs11.lib(lib_path)

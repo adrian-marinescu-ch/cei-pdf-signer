@@ -14,6 +14,7 @@ CEI PDF Signer este o aplicatie gratuita si open-source care permite semnarea di
 - Suport pentru certificatele ECDSA de pe CEI
 - Detectare automata a cititorului de carduri
 - Export direct in folderul Downloads
+- Configurare cale biblioteca PKCS#11 (pentru versiuni diferite de IDPlugManager)
 
 ## Cerinte
 
@@ -77,12 +78,31 @@ Aplicatia compilata va fi in `dist/CEI PDF Signer.app`
 - **PIN Semnatura (6 cifre)**: pentru semnarea documentelor (Slot 2)
 - **PIN Autentificare (4 cifre)**: pentru autentificare online (Slot 0)
 
+### Configurare PKCS#11
+
+Aplicatia foloseste implicit biblioteca PKCS#11 de la IDEMIA:
+```
+/Library/Application Support/com.idemia.idplug/lib/libidplug-pkcs11.2.7.0.dylib
+```
+
+Daca aveti o versiune diferita de IDPlugManager sau biblioteca se afla in alta locatie:
+1. Click pe iconita **Settings** (rotita) din header
+2. Introduceti calea catre biblioteca PKCS#11
+3. Click **Save**
+
+Setarea este salvata local si persista intre sesiuni.
+
 ## Rezolvarea problemelor
 
 ### "No smart card detected"
 - Verificati ca cititorul este conectat
 - Verificati ca CEI-ul este introdus corect in cititor
 - Reinstalati IDPlugManager
+
+### "PKCS11 library not found"
+- Verificati ca IDPlugManager este instalat
+- Deschideti Settings si verificati/actualizati calea catre biblioteca PKCS#11
+- Calea implicita este pentru versiunea 2.7.0 - daca aveti alta versiune, actualizati calea
 
 ### macOS blocheaza cititorul
 Daca macOS preia controlul asupra cititorului (apare notificare "Smart card detected"):

@@ -635,12 +635,123 @@
             text-align: center;
             margin-bottom: 15px;
         }
+
+        .settings-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-right: 10px;
+            transition: color 0.2s;
+        }
+
+        .settings-btn:hover {
+            color: #00d4ff;
+        }
+
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-modal.visible {
+            display: flex;
+        }
+
+        .settings-content {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 25px;
+            width: 500px;
+            max-width: 90%;
+        }
+
+        .settings-content h2 {
+            margin: 0 0 20px 0;
+            color: #fff;
+        }
+
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-group label {
+            display: block;
+            color: #888;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .settings-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #2a2a2a;
+            color: #fff;
+            font-size: 13px;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+
+        .settings-group input[type="text"]:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .settings-group .hint {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .settings-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .settings-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .settings-buttons .btn-save {
+            background: #00d4ff;
+            color: #000;
+        }
+
+        .settings-buttons .btn-cancel {
+            background: #333;
+            color: #fff;
+        }
+
+        .settings-buttons .btn-reset {
+            background: transparent;
+            color: #888;
+            margin-right: auto;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>CEI PDF Signer</h1>
         <div class="header-status">
+            <button class="settings-btn" onclick="openSettings()" title="Settings">&#9881;</button>
             <span id="card-status" class="status-badge searching" onclick="detectCard()">
                 <span class="pulse"></span><span>Searching for card...</span>
             </span>
@@ -728,6 +839,25 @@
     </div>
 
     <!-- Sign Wizard Modal -->
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-content">
+            <h2>Settings</h2>
+            <div class="settings-group">
+                <label>PKCS#11 Library Path</label>
+                <input type="text" id="pkcs11-path" placeholder="/path/to/pkcs11/library.dylib">
+                <div class="hint">
+                    Default: /Library/Application Support/com.idemia.idplug/lib/libidplug-pkcs11.2.7.0.dylib
+                </div>
+            </div>
+            <div class="settings-buttons">
+                <button class="btn-reset" onclick="resetSettings()">Reset to Default</button>
+                <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+                <button class="btn-save" onclick="saveSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="sign-modal">
         <div class="modal">
             <div class="modal-header">
@@ -807,6 +937,38 @@
             {id: 2, label: 'Slot 2 (Signature)'}
         ];
         let cardFound = false;  // Will be detected in background
+
+        // Settings
+        const DEFAULT_PKCS11_PATH = '/Library/Application Support/com.idemia.idplug/lib/libidplug-pkcs11.2.7.0.dylib';
+
+        function getPkcs11Path() {
+            return localStorage.getItem('pkcs11_path') || DEFAULT_PKCS11_PATH;
+        }
+
+        function openSettings() {
+            document.getElementById('pkcs11-path').value = getPkcs11Path();
+            document.getElementById('settings-modal').classList.add('visible');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('visible');
+        }
+
+        function saveSettings() {
+            const path = document.getElementById('pkcs11-path').value.trim();
+            if (path) {
+                localStorage.setItem('pkcs11_path', path);
+            } else {
+                localStorage.removeItem('pkcs11_path');
+            }
+            closeSettings();
+            // Re-detect card with new path
+            detectCard();
+        }
+
+        function resetSettings() {
+            document.getElementById('pkcs11-path').value = DEFAULT_PKCS11_PATH;
+        }
         let cardDetectionInterval = null;
         let isDrawing = false;
         let drawStart = null;
@@ -1321,7 +1483,8 @@
             statusEl.innerHTML = '<span class="pulse"></span><span>Detecting...</span>';
 
             try {
-                const response = await fetch('/api/slots');
+                const pkcs11Path = getPkcs11Path();
+                const response = await fetch('/api/slots?pkcs11_path=' + encodeURIComponent(pkcs11Path));
                 const data = await response.json();
 
                 if (data.error && !data.slots) {
@@ -1515,6 +1678,7 @@
                     formData.append('reason', reason);
                     formData.append('location', location);
                     formData.append('signature_boxes', JSON.stringify(boxes));
+                    formData.append('pkcs11_path', getPkcs11Path());
 
                     const response = await fetch('/api/sign', {
                         method: 'POST',
