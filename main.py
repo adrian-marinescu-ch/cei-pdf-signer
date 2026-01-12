@@ -24,6 +24,61 @@ import webview
 from app import app
 
 
+# Loading screen HTML - shown immediately while Flask starts
+LOADING_HTML = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CEI PDF Signer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(90deg, #00d4ff, #0099ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 40px;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 212, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .text {
+            margin-top: 25px;
+            color: #888;
+            font-size: 14px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">CEI PDF Signer</div>
+    <div class="spinner"></div>
+    <div class="text">Se incarca...</div>
+</body>
+</html>
+'''
+
+
 def find_free_port():
     """Find a free port to run the server on"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -36,17 +91,16 @@ def find_free_port():
 def start_server(port):
     """Start the Flask server in a background thread"""
     # Disable Flask's reloader and debug mode for production
-    # threaded=False so signal.alarm timeout works for PKCS11
     app.run(
         host='127.0.0.1',
         port=port,
         debug=False,
         use_reloader=False,
-        threaded=False
+        threaded=True
     )
 
 
-def wait_for_server(port, timeout=10):
+def wait_for_server(port, timeout=30):
     """Wait for the server to be ready"""
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -59,51 +113,43 @@ def wait_for_server(port, timeout=10):
     return False
 
 
-def on_loaded():
-    """Called when the window is loaded - bring to front"""
-    time.sleep(0.3)  # Small delay to ensure window is ready
-    # On macOS, use AppleScript to bring app to front
-    if sys.platform == 'darwin':
-        import subprocess
-        subprocess.run([
-            'osascript', '-e',
-            'tell application "System Events" to set frontmost of the first process whose unix id is {} to true'.format(os.getpid())
-        ], check=False)
-
-
 def main():
     # Find a free port
     port = find_free_port()
 
-    # Start Flask server in background thread
-    server_thread = threading.Thread(target=start_server, args=(port,), daemon=True)
-    server_thread.start()
-
-    # Wait for server to be ready
-    if not wait_for_server(port):
-        print("Error: Server failed to start")
-        sys.exit(1)
-
-    # Create the native window
+    # Create window with loading screen immediately (before Flask starts)
     window = webview.create_window(
         title='CEI PDF Signer',
-        url=f'http://127.0.0.1:{port}',
+        html=LOADING_HTML,
         width=1280,
         height=800,
         min_size=(1000, 600),
         resizable=True,
         confirm_close=True,
         text_select=True,
-        on_top=True,  # Start on top
     )
 
-    # Start the GUI with loaded callback
-    def bring_to_front():
-        time.sleep(0.5)
-        window.on_top = False  # Disable always-on-top after showing
+    def start_app():
+        """Start Flask and navigate to it once ready"""
+        # Start Flask server in background thread
+        server_thread = threading.Thread(target=start_server, args=(port,), daemon=True)
+        server_thread.start()
 
+        # Wait for server to be ready
+        if wait_for_server(port):
+            # Navigate to the Flask app
+            window.load_url(f'http://127.0.0.1:{port}')
+        else:
+            # Show error if server failed
+            window.load_html('''
+                <html><body style="background:#1a1a2e;color:#ff6464;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
+                <div style="text-align:center"><h2>Error</h2><p>Server failed to start. Please restart the application.</p></div>
+                </body></html>
+            ''')
+
+    # Start the GUI - the func runs in a separate thread
     webview.start(
-        func=bring_to_front,
+        func=start_app,
         debug=False,
         private_mode=False,  # Allow cookies/storage
     )
